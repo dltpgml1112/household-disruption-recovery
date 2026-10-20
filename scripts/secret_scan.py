@@ -29,9 +29,11 @@ def candidate_files() -> list[Path]:
     try:
         out = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "."],
                              cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines()
-        return [ROOT / p for p in out]
+        if out:  # empty when ROOT sits in a folder an enclosing repository ignores
+            return [ROOT / p for p in out]
     except (OSError, subprocess.CalledProcessError):
-        return [p for p in ROOT.rglob("*") if p.is_file() and not SKIP_DIRS & set(p.relative_to(ROOT).parts)]
+        pass
+    return [p for p in ROOT.rglob("*") if p.is_file() and not SKIP_DIRS & set(p.relative_to(ROOT).parts)]
 
 
 def main() -> int:

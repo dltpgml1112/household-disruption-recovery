@@ -114,6 +114,225 @@ drive the child takes the last stretch, otherwise whoever can stay longest).
 `ready` is true only when the plan was feasible, every write matches, and the checker finds
 nothing. If a write failed, the result lists it and the household is not marked ready.
 
+## Data model
+
+All tables, from [`src/hdr/store/db.py`](../src/hdr/store/db.py). Times of day are
+minutes after midnight in the household's time zone. Solid lines are foreign keys declared in
+SQLite (`PRAGMA foreign_keys=ON`). Dotted lines are references the service keeps without a
+declared key: member ids, and the plan id on the bookkeeping tables.
+
+The main tables and their key columns, grouped:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/erd-dark.svg">
+  <img src="images/erd-light.svg" alt="Entity relationship diagram of the main tables in three groups: household state (households, members, calendar_events, escorts, supervision), notice to plan (notices, disruptions, plans) and per plan (actions, approvals, verifications, notifications). Solid lines are declared foreign keys, dotted lines are plan ids kept by the service." width="880">
+</picture>
+
+Every table and column:
+
+```mermaid
+erDiagram
+    HOUSEHOLDS ||--o{ MEMBERS : has
+    HOUSEHOLDS ||--o{ LOCATIONS : has
+    HOUSEHOLDS ||--o{ TRAVEL : "minutes between locations"
+    HOUSEHOLDS ||--o{ CALENDAR_EVENTS : has
+    HOUSEHOLDS ||--o{ ESCORTS : "child trips"
+    HOUSEHOLDS ||--o{ SUPERVISION : "adult with a child"
+    HOUSEHOLDS ||--o{ NOTICES : receives
+    HOUSEHOLDS ||--o{ DISRUPTIONS : has
+    HOUSEHOLDS ||--o{ PLANS : has
+    NOTICES ||--o{ DISRUPTIONS : opens
+    DISRUPTIONS ||--o{ PLANS : "planned by"
+    PLANS ||--o{ ACTIONS : "writes to make"
+    PLANS ||--o{ APPROVALS : "parent decisions"
+    PLANS ||..o{ IDEMPOTENCY : "apply requests"
+    PLANS ||..o{ VERIFICATIONS : "read-back results"
+    PLANS ||..o{ NOTIFICATIONS : "messages sent"
+    MEMBERS ||..o{ CALENDAR_EVENTS : owns
+    MEMBERS ||..o{ ESCORTS : drives
+    MEMBERS ||..o{ SUPERVISION : watches
+
+    HOUSEHOLDS {
+        TEXT id PK
+        TEXT name
+        TEXT timezone
+        TEXT date
+        INTEGER day_start
+        INTEGER day_end
+        INTEGER state_version "bumped by every write"
+        TEXT school_json
+    }
+    MEMBERS {
+        TEXT household_id PK, FK
+        TEXT id PK
+        TEXT data_json "role, hours, whom they may drive or watch"
+    }
+    LOCATIONS {
+        TEXT household_id PK, FK
+        TEXT id PK
+        TEXT name
+    }
+    TRAVEL {
+        TEXT household_id PK, FK
+        TEXT a PK
+        TEXT b PK
+        INTEGER minutes
+    }
+    CALENDAR_EVENTS {
+        TEXT household_id PK, FK
+        TEXT id PK
+        TEXT member_id
+        TEXT title
+        INTEGER start_min
+        INTEGER end_min
+        TEXT location
+        INTEGER hard "cannot move"
+        TEXT kind "commitment or duty"
+        TEXT status "confirmed or cancelled"
+        TEXT responsibility_id
+        INTEGER reminder_min
+        TEXT source
+        TEXT updated_by_plan
+    }
+    ESCORTS {
+        TEXT household_id PK, FK
+        TEXT id PK
+        TEXT child_id
+        TEXT destination
+        INTEGER window_start
+        INTEGER window_end
+        INTEGER target_arrival
+        INTEGER max_late
+        INTEGER required
+        TEXT assigned_member_id
+        INTEGER depart
+        INTEGER arrive
+        TEXT updated_by_plan
+        TEXT status "active or cancelled"
+    }
+    SUPERVISION {
+        TEXT household_id PK, FK
+        TEXT id PK
+        TEXT child_id
+        TEXT member_id
+        INTEGER start_min
+        INTEGER end_min
+        TEXT updated_by_plan
+    }
+    NOTICES {
+        TEXT id PK
+        TEXT household_id FK
+        TEXT source
+        TEXT received_at
+        TEXT raw_sha256 "raw text is not stored"
+        INTEGER raw_length
+        TEXT structured_json
+        REAL confidence
+        INTEGER needs_clarification
+        TEXT created_at
+    }
+    DISRUPTIONS {
+        TEXT id PK
+        TEXT household_id FK
+        TEXT notice_id FK
+        TEXT kind "school_delay or school_closure"
+        TEXT status "open, planned, needs_decision, resolved"
+        TEXT affected_json
+        TEXT propagation_json
+        TEXT created_at
+    }
+    PLANS {
+        TEXT id PK
+        TEXT household_id FK
+        TEXT disruption_id FK
+        INTEGER version
+        INTEGER base_state_version
+        INTEGER expected_state_version
+        TEXT status "see Plan lifecycle in the README"
+        INTEGER feasible
+        TEXT result_json
+        TEXT actions_hash
+        TEXT created_at
+    }
+    ACTIONS {
+        TEXT id PK
+        TEXT plan_id FK
+        INTEGER seq
+        TEXT type
+        TEXT target_json
+        TEXT prev_json
+        TEXT proposed_json
+        TEXT summary
+        TEXT status "pending, applied or failed"
+        TEXT error
+        INTEGER attempts
+        TEXT applied_at
+    }
+    APPROVALS {
+        TEXT id PK
+        TEXT plan_id FK
+        INTEGER plan_version
+        TEXT decision "approve or reject"
+        TEXT approver_member_id
+        TEXT channel
+        TEXT token_sha256 "the token itself is not stored"
+        TEXT expires_at
+        INTEGER revoked
+        TEXT created_at
+    }
+    IDEMPOTENCY {
+        TEXT key PK
+        TEXT plan_id
+        TEXT request_sha256
+        TEXT response_json "returned again for a repeated key"
+        TEXT created_at
+    }
+    VERIFICATIONS {
+        TEXT id PK
+        TEXT plan_id
+        INTEGER ready
+        TEXT result_json
+        TEXT created_at
+    }
+    NOTIFICATIONS {
+        TEXT id PK
+        TEXT household_id
+        TEXT plan_id
+        TEXT action_id
+        TEXT member_id
+        TEXT channel
+        TEXT message
+        TEXT status "delivered to the simulated outbox"
+        TEXT created_at
+    }
+    FAULTS {
+        INTEGER id PK
+        TEXT household_id
+        TEXT target
+        TEXT selector
+        TEXT mode
+        INTEGER remaining
+        INTEGER delay_ms
+    }
+    AUDIT_EVENTS {
+        INTEGER id PK
+        TEXT ts
+        TEXT household_id
+        TEXT disruption_id
+        TEXT plan_id
+        TEXT actor
+        TEXT tool
+        TEXT input_json "ids, hashes and counts"
+        TEXT output_json
+        TEXT result
+        TEXT error_code
+        INTEGER duration_ms
+    }
+```
+
+`faults` holds the demo's injected failures (not reachable over MCP). `audit_events` has
+one row per tool call, indexed by disruption.
+
 ## Data and privacy
 
 Fixtures are synthetic. The audit log stores ids, hashes and counts; the raw notice text

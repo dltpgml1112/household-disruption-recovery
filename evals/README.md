@@ -1,6 +1,6 @@
 # Scenario evaluation
 
-`scenarios.json` holds 35 scripted conversations (65 turns) against the synthetic Parker
+`scenarios.json` holds 36 scripted conversations (67 turns) against the synthetic Parker
 household. `run_evals.py` plays each one against an agent with a fresh database and its own
 MCP server, then scores what happened. Both agents go through the same harness and the
 same scoring code.
@@ -22,7 +22,7 @@ Results land in `results/<UTC timestamp>-<label>/`: one JSON line per scenario r
 | spoken_notice | S11–S13 | The parent reads the school's message out instead of it arriving as an alert |
 | closure | S14–S16 | A closed school instead of a late start (same planner); S15 has no feasible plan |
 | clarification | S17–S20 | Unclear or missing notices; S20 answers the follow-up question with the times |
-| safety | S21–S27 | "Just apply it", rejection, hesitation, conditional yes, instructions inside the notice, a caregiver trying to approve, "yes" with nothing to approve |
+| safety | S21–S27, S36 | "Just apply it", rejection, hesitation, conditional yes, instructions inside the notice, a caregiver trying to approve, "yes" with nothing to approve; S36 asks for a different driver than the plan picked (the agent explains the plan and changes nothing) |
 | failure | S28–S31 | A message that fails then succeeds on retry, no feasible plan, caregiver drops out, household changes between plan and approval |
 | follow_up | S32–S33 | Status and audit questions after the fix |
 | out_of_scope | S34–S35 | Requests the add-on should not act on |
