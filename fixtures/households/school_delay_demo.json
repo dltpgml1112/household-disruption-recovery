@@ -1,0 +1,79 @@
+{
+  "_comment": "Synthetic household. No real people. Times are local to the household on `date`.",
+  "household": {
+    "id": "hh-demo",
+    "name": "The Parker household (synthetic)",
+    "timezone": "America/New_York",
+    "date": "2026-10-15",
+    "day_start": "06:00",
+    "day_end": "18:00"
+  },
+  "locations": [
+    {"id": "home", "name": "Home"},
+    {"id": "school", "name": "Maple Elementary"},
+    {"id": "daycare", "name": "Little Oaks Daycare"},
+    {"id": "sarah_work", "name": "Sarah's office"},
+    {"id": "mike_office", "name": "Mike's office"}
+  ],
+  "travel": [
+    ["home", "school", 10],
+    ["home", "daycare", 25],
+    ["home", "sarah_work", 20],
+    ["home", "mike_office", 15],
+    ["school", "daycare", 15],
+    ["school", "sarah_work", 20],
+    ["school", "mike_office", 15],
+    ["daycare", "sarah_work", 15],
+    ["daycare", "mike_office", 15],
+    ["sarah_work", "mike_office", 20]
+  ],
+  "members": [
+    {"id": "sarah", "name": "Sarah", "role": "parent", "can_supervise": ["emma", "noah"], "can_escort": ["emma", "noah"]},
+    {"id": "mike", "name": "Mike", "role": "parent", "can_supervise": ["emma", "noah"], "can_escort": ["emma", "noah"]},
+    {
+      "id": "linda", "name": "Linda", "role": "caregiver",
+      "can_supervise": ["emma", "noah"], "can_escort": ["emma"],
+      "available_from": "08:30", "available_until": "10:30",
+      "note": "Approved caregiver, on call for late-start school days. Approved for school drop-off."
+    },
+    {"id": "emma", "name": "Emma", "role": "child", "age": 8, "needs_supervision": true, "ready_at": "07:30"},
+    {"id": "noah", "name": "Noah", "role": "child", "age": 3, "needs_supervision": true, "ready_at": "07:30"}
+  ],
+  "commitments": [
+    {"id": "ev-sarah-work", "member_id": "sarah", "title": "Work", "start": "08:30", "end": "17:00", "location": "sarah_work", "hard": true},
+    {"id": "ev-mike-meeting", "member_id": "mike", "title": "Client meeting", "start": "08:45", "end": "09:45", "location": "mike_office", "hard": true},
+    {"id": "ev-mike-work", "member_id": "mike", "title": "Office work", "start": "09:45", "end": "17:00", "location": "mike_office", "hard": false}
+  ],
+  "escorts": [
+    {
+      "id": "r-emma-school", "child_id": "emma", "destination": "school",
+      "window_start": "08:05", "window_end": "08:15", "target_arrival": "08:05",
+      "assigned_member_id": "sarah", "depart": "07:55", "arrive": "08:05"
+    },
+    {
+      "id": "r-noah-daycare", "child_id": "noah", "destination": "daycare",
+      "window_start": "07:30", "window_end": "08:00", "target_arrival": "08:00",
+      "assigned_member_id": "mike", "depart": "07:35", "arrive": "08:00"
+    }
+  ],
+  "supervision": [
+    {"child_id": "emma", "member_id": "sarah", "start": "07:30", "end": "07:55"},
+    {"child_id": "noah", "member_id": "mike", "start": "07:30", "end": "07:35"}
+  ],
+  "school": {"id": "school", "name": "Maple Elementary", "doors_open": "08:05", "classes_begin": "08:15"},
+  "notice": {
+    "source": "Maple Elementary text alert",
+    "received_at": "2026-10-15T06:15:00-04:00",
+    "raw": "Due to severe weather, school will operate on a two-hour delay. Doors open at 10:05 AM and classes begin at 10:15 AM."
+  },
+  "other_notices": {
+    "closure": {
+      "source": "Maple Elementary text alert",
+      "received_at": "2026-10-15T06:05:00-04:00",
+      "raw": "A water main break has left Maple Elementary without running water. School is closed today, Thursday, October 15. All other district schools are open."
+    }
+  },
+  "variants": {
+    "linda-unavailable": {"members": {"linda": {"available": false}}}
+  }
+}

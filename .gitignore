@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+var/
+*.sqlite3
+*.sqlite3-*
+.env
+node_modules/
+.next/
+apps/simulator/out/
+*.tsbuildinfo
+apps/simulator/next-env.d.ts
+# written by next dev for coding agents; not part of this project
+apps/simulator/AGENTS.md
+apps/simulator/CLAUDE.md

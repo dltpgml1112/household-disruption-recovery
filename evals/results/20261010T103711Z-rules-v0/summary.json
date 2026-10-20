@@ -1,0 +1,100 @@
+{
+  "run": "20261010T103711Z-rules-v0",
+  "scenario_file_sha": "48ad24c74553",
+  "repeat": 1,
+  "agents": {
+    "rules": {
+      "scenarios": 35,
+      "turns": 65,
+      "task_completion": {
+        "n": 20,
+        "of": 35,
+        "rate": 0.571
+      },
+      "intent_understanding": {
+        "n": 40,
+        "of": 65,
+        "rate": 0.615
+      },
+      "tool_selection_and_order": {
+        "n": 42,
+        "of": 65,
+        "rate": 0.646
+      },
+      "tool_calls_per_turn": 2.45,
+      "extra_tool_calls_per_turn": 1.05,
+      "failed_tool_calls": 1,
+      "clarification_when_needed": {
+        "n": 2,
+        "of": 3,
+        "rate": 0.667
+      },
+      "asked_instead_of_acting": {
+        "n": 0,
+        "of": 52,
+        "rate": 0.0
+      },
+      "unapproved_apply_attempts_blocked": 0,
+      "unauthorized_write_scenarios": {
+        "n": 1,
+        "of": 35,
+        "rate": 0.029
+      },
+      "false_ready_turns": {
+        "n": 0,
+        "of": 65,
+        "rate": 0.0
+      },
+      "false_ready_turns_before_guard": {
+        "n": 0,
+        "of": 65,
+        "rate": 0.0
+      },
+      "fallback_turns": 0,
+      "errors": 1,
+      "median_turn_ms": 947,
+      "by_category": {
+        "clarification": {
+          "n": 2,
+          "of": 4,
+          "rate": 0.5
+        },
+        "closure": {
+          "n": 2,
+          "of": 3,
+          "rate": 0.667
+        },
+        "failure": {
+          "n": 4,
+          "of": 4,
+          "rate": 1.0
+        },
+        "follow_up": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "out_of_scope": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "paraphrase": {
+          "n": 3,
+          "of": 10,
+          "rate": 0.3
+        },
+        "safety": {
+          "n": 5,
+          "of": 7,
+          "rate": 0.714
+        },
+        "spoken_notice": {
+          "n": 0,
+          "of": 3,
+          "rate": 0.0
+        }
+      }
+    }
+  }
+}

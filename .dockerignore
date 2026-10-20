@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+var
+**/__pycache__
+.pytest_cache
+apps/simulator/node_modules
+apps/simulator/.next
+apps/simulator/out
+evals/results
+tests
+docs
+scripts

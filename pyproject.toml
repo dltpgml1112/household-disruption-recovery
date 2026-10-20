@@ -1,0 +1,36 @@
+[project]
+name = "household-disruption-recovery"
+version = "0.1.0"
+description = "Alexa+ simulation: recover a family's morning after a school schedule disruption, through a self-hosted MCP server."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    # strands-agents 1.59 requires mcp<2.2; 2.1.x keeps one environment for both.
+    "mcp>=2.1.1,<2.2",
+    "pydantic>=2.8",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "strands-agents[gemini]>=1.59,<2",
+    "httpx2>=2.13.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hdr"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "integration: starts real HTTP servers on localhost",
+]

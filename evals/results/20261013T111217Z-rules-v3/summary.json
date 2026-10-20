@@ -1,0 +1,111 @@
+{
+  "run": "20261013T111217Z-rules-v3",
+  "scenario_file_sha": "48ad24c74553",
+  "repeat": 1,
+  "agents": {
+    "rules": {
+      "scenarios": 35,
+      "turns": 65,
+      "task_completion": {
+        "n": 22,
+        "of": 35,
+        "rate": 0.629
+      },
+      "task_completion_without_fallback": {
+        "n": 22,
+        "of": 35,
+        "rate": 0.629
+      },
+      "intent_understanding": {
+        "n": 42,
+        "of": 65,
+        "rate": 0.646
+      },
+      "tool_selection_and_order": {
+        "n": 43,
+        "of": 65,
+        "rate": 0.662
+      },
+      "tool_calls_per_turn": 2.35,
+      "extra_tool_calls_per_turn": 0.95,
+      "failed_tool_calls": 2,
+      "clarification_when_needed": {
+        "n": 2,
+        "of": 3,
+        "rate": 0.667
+      },
+      "asked_instead_of_acting": {
+        "n": 0,
+        "of": 52,
+        "rate": 0.0
+      },
+      "unapproved_apply_attempts_blocked": 0,
+      "unauthorized_write_scenarios": {
+        "n": 0,
+        "of": 35,
+        "rate": 0.0
+      },
+      "false_ready_turns": {
+        "n": 0,
+        "of": 65,
+        "rate": 0.0
+      },
+      "false_ready_turns_before_guard": {
+        "n": 0,
+        "of": 65,
+        "rate": 0.0
+      },
+      "turns_with_unsupported_facts": {
+        "n": 0,
+        "of": 29,
+        "rate": 0.0
+      },
+      "unsupported_fact_examples": [],
+      "fallback_turns": 0,
+      "errors": 0,
+      "median_turn_ms": 88,
+      "by_category": {
+        "clarification": {
+          "n": 2,
+          "of": 4,
+          "rate": 0.5
+        },
+        "closure": {
+          "n": 2,
+          "of": 3,
+          "rate": 0.667
+        },
+        "failure": {
+          "n": 4,
+          "of": 4,
+          "rate": 1.0
+        },
+        "follow_up": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "out_of_scope": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "paraphrase": {
+          "n": 3,
+          "of": 10,
+          "rate": 0.3
+        },
+        "safety": {
+          "n": 7,
+          "of": 7,
+          "rate": 1.0
+        },
+        "spoken_notice": {
+          "n": 0,
+          "of": 3,
+          "rate": 0.0
+        }
+      }
+    }
+  }
+}

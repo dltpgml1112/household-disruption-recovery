@@ -1,0 +1,82 @@
+{
+  "run": "20261013T104453Z-strands-v3-fix-stale-block",
+  "scenario_file_sha": "48ad24c74553",
+  "repeat": 3,
+  "agents": {
+    "strands": {
+      "scenarios": 3,
+      "turns": 6,
+      "task_completion": {
+        "n": 3,
+        "of": 3,
+        "rate": 1.0
+      },
+      "task_completion_without_fallback": {
+        "n": 3,
+        "of": 3,
+        "rate": 1.0
+      },
+      "intent_understanding": {
+        "n": 6,
+        "of": 6,
+        "rate": 1.0
+      },
+      "tool_selection_and_order": {
+        "n": 6,
+        "of": 6,
+        "rate": 1.0
+      },
+      "tool_calls_per_turn": 2.83,
+      "extra_tool_calls_per_turn": 0.83,
+      "failed_tool_calls": 1,
+      "clarification_when_needed": {
+        "n": 0,
+        "of": 0,
+        "rate": null
+      },
+      "asked_instead_of_acting": {
+        "n": 0,
+        "of": 6,
+        "rate": 0.0
+      },
+      "unapproved_apply_attempts_blocked": 0,
+      "unauthorized_write_scenarios": {
+        "n": 0,
+        "of": 3,
+        "rate": 0.0
+      },
+      "false_ready_turns": {
+        "n": 0,
+        "of": 6,
+        "rate": 0.0
+      },
+      "false_ready_turns_before_guard": {
+        "n": 0,
+        "of": 6,
+        "rate": 0.0
+      },
+      "turns_with_unsupported_facts": {
+        "n": 0,
+        "of": 6,
+        "rate": 0.0
+      },
+      "unsupported_fact_examples": [],
+      "fallback_turns": 0,
+      "errors": 0,
+      "median_turn_ms": 8318,
+      "by_category": {
+        "failure": {
+          "n": 3,
+          "of": 3,
+          "rate": 1.0
+        }
+      }
+    }
+  },
+  "model": "gemini-3.5-flash-lite",
+  "model_params": {
+    "thinking_config": {
+      "thinking_level": "LOW"
+    }
+  }
+}
