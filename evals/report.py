@@ -1,5 +1,6 @@
-"""Print the README comparison table from two result folders.
+"""Print the README comparison table from a result folder with both agents, or from two folders.
 
+    uv run python evals/report.py evals/results/<run>
     uv run python evals/report.py evals/results/<rules run> evals/results/<strands run>
 """
 
@@ -10,20 +11,33 @@ import sys
 from pathlib import Path
 
 
-def load(folder: str) -> tuple[str, dict, dict]:
-    summary = json.loads((Path(folder) / "summary.json").read_text(encoding="utf-8"))
-    (kind, agent), = summary["agents"].items()
-    return kind, agent, summary
+def load(*folders: str) -> dict[str, tuple[dict, dict, str]]:
+    """agent name -> (its summary, the run's summary, folder)"""
+    found = {}
+    for folder in folders:
+        summary = json.loads((Path(folder) / "summary.json").read_text(encoding="utf-8"))
+        for name, agent in summary["agents"].items():
+            found[name] = (agent, summary, folder)
+    return found
 
 
 def frac(x: dict) -> str:
     return f"{x['n']}/{x['of']}" if x and x.get("of") else "–"
 
 
-def main(rules_dir: str, llm_dir: str) -> None:
+def proposal_words(folder: str, agent: str) -> str:
+    """Median word count of the spoken reply in the turns that proposed a plan (observed PLAN_PROPOSED)."""
+    counts = [len((turn.get("speech") or "").split())
+              for line in (Path(folder) / f"{agent}.jsonl").read_text(encoding="utf-8").splitlines()
+              for turn in json.loads(line)["turns"] if "PLAN_PROPOSED" in (turn.get("observed") or [])]
+    return str(sorted(counts)[len(counts) // 2]) if counts else "–"
+
+
+def main(*folders: str) -> None:
     sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to a legacy code page
-    _, r, _ = load(rules_dir)
-    _, s, meta = load(llm_dir)
+    agents = load(*folders)
+    r, _, r_dir = agents["rules"]
+    s, meta, s_dir = agents["strands"]
     rows = [
         ("Scenarios completed (every turn right, final state right)", frac(r["task_completion"]),
          frac(s["task_completion"])),
@@ -45,6 +59,7 @@ def main(rules_dir: str, llm_dir: str) -> None:
         ("Replies with a time or count not in the tool results", frac(r["turns_with_unsupported_facts"]),
          frac(s["turns_with_unsupported_facts"])),
         ("Turns handed to the rule agent", "–", str(s["fallback_turns"])),
+        ("Words in the spoken plan proposal (median)", proposal_words(r_dir, "rules"), proposal_words(s_dir, "strands")),
         ("Median time per turn", f"{r['median_turn_ms'] / 1000:.1f} s", f"{s['median_turn_ms'] / 1000:.1f} s"),
     ]
     model = meta.get("model", "LLM")
@@ -60,4 +75,4 @@ def main(rules_dir: str, llm_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(*sys.argv[1:])

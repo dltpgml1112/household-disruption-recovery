@@ -132,7 +132,8 @@ view (extension `io.modelcontextprotocol/ui`, spec 2026-01-26):
   Alexa+'s add-on docs show it, with `invoking` and `invoked` text). Hosts without MCP Apps
   still get the text and the structured content.
 - `approve_recovery_plan` carries `_meta.ui.visibility: ["app"]`: a host that follows MCP
-  Apps keeps it out of the model's tool list and lets only the view call it.
+  Apps keeps it out of the model's tool list; only a view may call it (MCP Apps lets a
+  view send `tools/call` through its host).
 
 Amazon's MCP toolkit docs say Alexa+ supports MCP Apps and renders them in its webview
 ([overview](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-overview.html)).
@@ -144,12 +145,18 @@ no same-origin access) and speaks the MCP Apps postMessage protocol (`ui/initial
 "Apply 13 changes" reaches the host as `ui/message` "Yes, do it" from the current speaker
 and goes through the same consent check as a spoken yes.
 
-The simulator shows the household on a wall display (Echo Show framing) or on a phone
-(Alexa app framing): **Phone** at the top, or `?device=phone`. Same session, same API.
-In phone mode the host context sent to the card says `platform: "mobile"`, touch without
-hover, the container size and the safe-area insets, and the card stacks its buttons for
-the narrow screen. I could not check whether the Alexa app on a phone renders MCP Apps;
-this only shows that the card handles a mobile host context.
+Who calls `approve_recovery_plan`, then? Here, the orchestrator: after the consent check
+it calls the tool as the parent who is speaking. My card never calls a tool itself. In
+Alexa+ the orchestrator would be Alexa's, not mine, so the card's button would have to
+send `tools/call approve_recovery_plan` through the host, and the server would need to
+know which family member tapped (today the approver's member id is an argument the client
+sends). I have not built that path and could not test it.
+
+The simulator shows the household on a wall display (Echo Show framing) or in a phone
+frame: **Phone** at the top, or `?device=phone`. Same session, same API. In phone mode
+the host context sent to the card says `platform: "mobile"`, touch without hover, and the
+frame's size, and the card stacks its buttons for the narrow screen. The phone frame is a
+stand-in: I could not check whether the Alexa app on a phone renders MCP Apps.
 
 ![Phone mode after "Try again": the same session in a phone frame, the card in a mobile host context reads Household ready, 13 of 13 read back; one write retried, twelve already in](docs/images/phone-mode.png)
 
@@ -394,7 +401,8 @@ checker, not from the agent's own verification. Definitions are in
 [evals/README.md](evals/README.md); raw results in `evals/results/`.
 
 Run of 2026-10-21 on the current code, one pass per agent (`20261021T003756Z-v6` in
-`evals/results/`), model gemini-3.5-flash-lite with thinking level LOW:
+`evals/results/`), model gemini-3.5-flash-lite with thinking level LOW. `uv run python
+evals/report.py evals/results/20261021T003756Z-v6` prints this table from the run:
 
 | | Rule agent | Strands + gemini-3.5-flash-lite |
 |---|---|---|
@@ -515,8 +523,9 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1  # Windows
 Open http://127.0.0.1:3000, press **School alert arrives**, then say or click
 "Alexa, fix our morning", then tap "Apply 13 changes" on the card (or say "Yes, do it"). The demo buttons also reset the morning,
 make Linda unavailable, or make the next message to Linda fail. The trace panel shows
-every MCP request of the last turn and which agent answered. **Phone** at the top shows the
-same session in a phone frame.
+every MCP request of the last turn and which agent answered; the time on each row counts
+from the start of the turn, so it includes the model's thinking before that call.
+**Phone** at the top shows the same session in a phone frame.
 
 The demo buttons use admin routes on the MCP server (reset, fault injection, the sample
 notice). They exist only when `HDR_ADMIN_TOKEN` is set; the dev scripts generate one. If

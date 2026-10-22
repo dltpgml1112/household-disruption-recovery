@@ -876,14 +876,14 @@ figure.mcp-app.is-lit .pin-frame { box-shadow: 0 0 0 2px var(--ink), var(--shado
 
 .wire { list-style: none; margin: 0 -6px; padding: 0; font: 12.5px / 1.45 var(--f-mono); }
 .wire li {
-  position: relative; display: grid; grid-template-columns: 50px 30px minmax(0, 1fr) auto;
+  position: relative; display: grid; grid-template-columns: 56px 30px minmax(0, 1fr) auto;
   grid-template-areas: "t c m h" ". . note note";
   column-gap: 8px; row-gap: 2px; align-items: baseline; padding: 5px 6px; border-top: 1px solid var(--line);
 }
 .wire li.is-plumbing { padding-top: 3px; padding-bottom: 3px; font-size: 11px; color: var(--muted); }
 .wire li:first-child { border-top-color: transparent; }
 .wire li[data-tool]:hover, .wire li.is-lit { background: var(--paper-2); }
-.wire .t { grid-area: t; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wire .t { grid-area: t; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wire .code { grid-area: c; font-weight: 600; color: var(--muted); }
 .wire .code.s2 { color: var(--muted); }
 .wire .code.s4, .wire .code.s5 { color: var(--mark-ink); }

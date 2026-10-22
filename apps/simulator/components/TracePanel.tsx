@@ -17,6 +17,11 @@ function roleOf(trace: Trace): string {
   return "";
 }
 
+/** A row's time is an offset from the start of the turn (model thinking included), not the request's latency. */
+function sinceStart(ms: number): string {
+  return ms < 1000 ? `+${ms} ms` : `+${(ms / 1000).toFixed(1)} s`;
+}
+
 /** Under the hood: the real JSON-RPC rows of the last turn, in the order they happened.
  *  A tools/call row carries data-tool, so hovering it lights the marks its tool produced (data-source).
  *  While a turn is running the rows stay as they were and say they belong to the previous turn. */
@@ -140,7 +145,7 @@ export function TracePanel({
       {!trace || wire.length === 0 ? (
         <p className="empty">No calls yet.</p>
       ) : (
-        <ol key={turnKey} ref={list} className="wire" aria-label="JSON-RPC calls, milliseconds from the start of the turn">
+        <ol key={turnKey} ref={list} className="wire" aria-label="JSON-RPC calls, time since the turn started">
           {wire.map((w, i) => {
             const isTool = w.method === "tools/call" || w.method === "resources/read";
             const failed = (w.status ?? 0) >= 400;
@@ -154,7 +159,12 @@ export function TracePanel({
                 tabIndex={tool ? 0 : undefined}
                 style={{ "--i": i } as CSSProperties}
               >
-                <span className="t">{w.at_ms ?? 0}ms</span>
+                <span
+                  className="t"
+                  title={`since the turn started${w.latency_ms != null ? ` · the request itself took ${Math.round(w.latency_ms)} ms` : ""}`}
+                >
+                  {sinceStart(w.at_ms ?? 0)}
+                </span>
                 <span className={`code s${String(w.status ?? 0)[0]}`}>{w.status ?? "…"}</span>
                 <span className="m">
                   {w.method}
