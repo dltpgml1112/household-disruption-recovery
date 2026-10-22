@@ -38,11 +38,11 @@ is the one given in the log.
 
 ## Alexa+ add-on documentation
 
-**Used for:** the MCP add-on design guide (https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-design-guide-overview.html, last updated 2026-07-21); the add-on setup guides; the "Introducing Alexa+" announcement, to start this project where Alexa+ already puts a school's dates on the calendar.
+**Used for:** the MCP add-on design guide (https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-design-guide-overview.html, last updated 2026-07-21); the add-on setup guides; the MCP toolkit overview and client-lifecycle pages, for MCP Apps; the "Introducing Alexa+" announcement, to start this project where Alexa+ already puts a school's dates on the calendar.
 
-**Worked well:** The design guide's first principle, end-to-end task completion with the outcome confirmed clearly, set the target: the agent does not say the household is ready until `verify_recovery` has read every write back.
+**Worked well:** The design guide's first principle, end-to-end task completion with the outcome confirmed clearly, set the target: the agent does not say the household is ready until `verify_recovery` has read every write back. The toolkit overview says Alexa+ supports the MCP Apps extension, which gave the card a standard form: the server serves it as a `ui://` view that any MCP Apps host can render.
 
-**Needs work:** The add-on developer tools (MCP Toolkit, Web Simulator) are partner-only. The notice is on the add-on docs home page but, in the hackathon FAQ's words, "sometimes missing from individual setup-guide pages, which has caused some confusion" (#1, High). Suggest the partner-only notice on every setup-guide page.
+**Needs work:** The add-on developer tools (MCP Toolkit, Web Simulator) are partner-only. The notice is on the add-on docs home page but, in the hackathon FAQ's words, "sometimes missing from individual setup-guide pages, which has caused some confusion" (#1, High). Suggest the partner-only notice on every setup-guide page. Where `_meta.ui.resourceUri` goes is unclear: the client-lifecycle page shows it on the tool result, the MCP Apps spec on the tool definition, and the page does not say which MCP Apps version the webview speaks (#10, Medium). I set both.
 
 **Onboarding:** I read the add-on setup guides, found the tools gated, and built my own simulator that speaks MCP over Streamable HTTP. My "hello world" was `scripts/demo_cli.py` running the full flow against the local server on 2026-10-10.
 

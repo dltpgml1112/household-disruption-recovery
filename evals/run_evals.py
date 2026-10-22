@@ -232,6 +232,8 @@ def run_scenario(kind: str, sc: dict, notices: dict, fixture_notices: dict) -> d
         s.approver_member_id = sc.get("speaker", "sarah")
         s.state = service.get_household_state("hh-demo", actor="harness").model_dump()
         for spec in sc["turns"]:
+            if "speaker" in spec:  # who is speaking can change between turns
+                s.approver_member_id = spec["speaker"]
             if "notice" in spec:
                 key = spec["notice"]
                 s.pending_notice = dict(fixture_notices[key] if key in fixture_notices else notices[key])

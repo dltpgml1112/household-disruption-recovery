@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Avatar } from "@/components/People";
 import type { Member } from "@/lib/types";
 
 type Recognition = {
@@ -22,6 +23,7 @@ export function VoiceBar({
   members,
   speaker,
   onSpeaker,
+  locked = null,
 }: {
   onSend: (text: string, channel: "voice" | "screen") => void;
   chips: string[];
@@ -29,6 +31,8 @@ export function VoiceBar({
   members: Member[];
   speaker: string;
   onSpeaker: (id: string) => void;
+  /** a member whose approval the server just refused (shown with a lock beside the speaker) */
+  locked?: string | null;
 }) {
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
@@ -94,11 +98,25 @@ export function VoiceBar({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder='Type what you would say, e.g. "Alexa, fix our morning"'
-          aria-label="Utterance"
+          aria-label="Say to Alexa"
           disabled={busy}
         />
       </form>
-      <label className="speaker">
+      <div className="chips" role="group" aria-label="Suggested phrases">
+        {chips.map((c) => (
+          <button key={c} type="button" onClick={() => onSend(c, "voice")} disabled={busy}>
+            {c}
+          </button>
+        ))}
+      </div>
+      <label className={`speaker${locked ? " locked" : ""}`}>
+        {members.find((m) => m.id === speaker) && <Avatar member={members.find((m) => m.id === speaker)!} />}
+        {locked && (
+          <svg className="lock" viewBox="0 0 14 16" aria-hidden>
+            <rect x="1.5" y="7" width="11" height="8" rx="2" />
+            <path d="M4 7V5a3 3 0 0 1 6 0v2" />
+          </svg>
+        )}
         Speaking:{" "}
         <select value={speaker} onChange={(e) => onSpeaker(e.target.value)} disabled={busy}>
           {members.map((m) => (
@@ -107,14 +125,8 @@ export function VoiceBar({
             </option>
           ))}
         </select>
+        {locked && <span className="cant">can&apos;t approve</span>}
       </label>
-      <div className="chips" role="group" aria-label="Suggested phrases">
-        {chips.map((c) => (
-          <button key={c} type="button" onClick={() => onSend(c, "voice")} disabled={busy}>
-            {c}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

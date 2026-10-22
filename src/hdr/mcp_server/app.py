@@ -5,14 +5,17 @@ from __future__ import annotations
 import hmac
 import json
 import os
-from typing import Any, Callable
+from pathlib import Path
+from typing import Annotated, Any, Callable
 
 import anyio
+import pydantic_core
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
-from mcp_types import ToolAnnotations
+from mcp_types import CallToolResult, TextContent, ToolAnnotations
 from mcp_types.version import MODERN_PROTOCOL_VERSIONS
+from pydantic import BaseModel
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -39,7 +42,21 @@ INSTRUCTIONS = (
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 PLANNING = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
+# a school notice or an availability change is written without approval (it is a fact, not a
+# choice); a closure cancels the school trip, so these are not additive-only
+RECORDS_FACTS = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=False)
+# verification records its result and marks the plan verified; household rows are only read
+VERIFIES = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 WRITES = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True)
+
+# MCP Apps (extension io.modelcontextprotocol/ui, spec 2026-01-26): the plan and result card as
+# an HTML view that hosts render in a sandboxed frame. Alexa+ renders MCP Apps in its webview.
+APP_MIME_TYPE = "text/html;profile=mcp-app"
+CARD_URI = "ui://household-disruption-recovery/card"
+CARD_HTML = (Path(__file__).with_name("ui") / "recovery_card.html").read_text(encoding="utf-8")
+CARD_UI = {"ui": {"resourceUri": CARD_URI}}
+# Hosts that follow MCP Apps keep app-only tools out of the model's tool list.
+APP_ONLY = {"ui": {"visibility": ["app"]}}
 
 TOOL_NAMES = [
     "get_household_state",
@@ -58,6 +75,17 @@ def _call(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         return fn(*args, **kwargs)
     except HdrError as e:
         raise ToolError(f"{e.code}: {e.message}") from None
+
+
+def _with_card(out: BaseModel, invoking: str, invoked: str) -> CallToolResult:
+    """The text and structured content MCPServer would return for `out`, plus `_meta.ui` on the
+    result. The MCP Apps spec links a view on the tool definition; Alexa+'s add-on docs show
+    `resourceUri` on the tool result. The server does both."""
+    return CallToolResult(
+        content=[TextContent(type="text", text=pydantic_core.to_json(out, fallback=str, indent=2).decode())],
+        structured_content=out.model_dump(mode="json"),
+        meta={"ui": {"resourceUri": CARD_URI, "invoking": invoking, "invoked": invoked}},
+    )
 
 
 def build_mcp(service: RecoveryService) -> MCPServer:
@@ -84,7 +112,13 @@ def build_mcp(service: RecoveryService) -> MCPServer:
         await delay("get_household_state")
         return _call(service.get_household_state, household_id, window_start, window_end)
 
-    @mcp.tool(annotations=PLANNING)
+    @mcp.resource(CARD_URI, name="recovery_card", title="Plan and result card",
+                  description="The plan or result card as an MCP App view, for hosts that render MCP Apps.",
+                  mime_type=APP_MIME_TYPE, meta={"ui": {"prefersBorder": True}})
+    def recovery_card() -> str:
+        return CARD_HTML
+
+    @mcp.tool(annotations=RECORDS_FACTS)
     async def ingest_school_notice(
         household_id: str, raw_notice: str, source: str, received_at: str,
         clarification: dict[str, str] | None = None,
@@ -96,15 +130,18 @@ def build_mcp(service: RecoveryService) -> MCPServer:
         await delay("ingest_school_notice")
         return _call(service.ingest_school_notice, household_id, raw_notice, source, received_at, clarification)
 
-    @mcp.tool(annotations=PLANNING)
-    async def plan_disruption_recovery(disruption_id: str, household_state_version: int) -> PlanOut:
+    @mcp.tool(annotations=PLANNING, meta=CARD_UI)
+    async def plan_disruption_recovery(
+        disruption_id: str, household_state_version: int
+    ) -> Annotated[CallToolResult, PlanOut]:
         """Compute a recovery plan with the deterministic planner. Does not change household
         commitments. Returns conflicts, proposed actions (before/after), the reasons for each
         choice, and unresolved items when no feasible plan exists."""
         await delay("plan_disruption_recovery")
-        return _call(service.plan_disruption_recovery, disruption_id, household_state_version)
+        out = _call(service.plan_disruption_recovery, disruption_id, household_state_version)
+        return _with_card(out, "Planning the morning", "Plan ready" if out.feasible else "No plan covers everyone")
 
-    @mcp.tool(annotations=PLANNING)
+    @mcp.tool(annotations=PLANNING, meta=APP_ONLY)
     async def approve_recovery_plan(
         plan_id: str, plan_version: int, decision: str, approver_member_id: str, channel: str = "voice"
     ) -> ApprovalOut:
@@ -121,12 +158,13 @@ def build_mcp(service: RecoveryService) -> MCPServer:
         await delay("apply_recovery_plan")
         return _call(service.apply_recovery_plan, plan_id, approval_token, idempotency_key)
 
-    @mcp.tool(annotations=READ_ONLY)
-    async def verify_recovery(plan_id: str) -> VerifyOut:
+    @mcp.tool(annotations=VERIFIES, meta=CARD_UI)
+    async def verify_recovery(plan_id: str) -> Annotated[CallToolResult, VerifyOut]:
         """Read every write back from storage, compare with the plan, and re-check the whole
         household. ready=true only when all writes match and nothing is unassigned or violated."""
         await delay("verify_recovery")
-        return _call(service.verify_recovery, plan_id)
+        out = _call(service.verify_recovery, plan_id)
+        return _with_card(out, "Reading every change back", "Household ready" if out.ready else "Not ready")
 
     @mcp.tool(annotations=READ_ONLY)
     async def get_audit_log(disruption_id: str) -> AuditOut:
@@ -134,7 +172,7 @@ def build_mcp(service: RecoveryService) -> MCPServer:
         await delay("get_audit_log")
         return _call(service.get_audit_log, disruption_id)
 
-    @mcp.tool(annotations=PLANNING)
+    @mcp.tool(annotations=RECORDS_FACTS)
     async def report_availability_change(
         household_id: str, member_id: str, available: bool, reason: str = ""
     ) -> AvailabilityOut:

@@ -118,6 +118,47 @@ def test_streamable_http_2025_11_25_end_to_end(server):
     assert all(h.get("MCP-Protocol-Version") == PROTOCOL for h in mcp.sent_headers)
 
 
+def test_mcp_apps_card_resource_and_tool_links(server):
+    """MCP Apps (io.modelcontextprotocol/ui): the card is a ui:// HTML resource, linked from the
+    plan and verify tools (definition and result), and the approval tool is app-only."""
+    live, _, _ = server
+    mcp = RawMcp(live.url)
+    caps = mcp.initialize()["capabilities"]
+    assert "resources" in caps
+
+    tools = {t["name"]: t for t in parse_rpc(mcp.request("tools/list"))["result"]["tools"]}
+    card_uri = "ui://household-disruption-recovery/card"
+    for name in ("plan_disruption_recovery", "verify_recovery"):
+        assert tools[name]["_meta"]["ui"]["resourceUri"] == card_uri
+    assert tools["approve_recovery_plan"]["_meta"]["ui"]["visibility"] == ["app"]
+    for name in ("ingest_school_notice", "report_availability_change", "apply_recovery_plan"):
+        assert tools[name]["annotations"]["destructiveHint"] is True
+    assert tools["verify_recovery"]["annotations"]["readOnlyHint"] is False
+
+    listed = parse_rpc(mcp.request("resources/list"))["result"]["resources"]
+    card = next(r for r in listed if r["uri"] == card_uri)
+    assert card["mimeType"] == "text/html;profile=mcp-app"
+    read = parse_rpc(mcp.request("resources/read", {"uri": card_uri}))["result"]["contents"][0]
+    assert read["mimeType"] == "text/html;profile=mcp-app"
+    assert read["text"].startswith("<!doctype html>")
+    for method in ("ui/initialize", "ui/notifications/initialized", "ui/notifications/tool-result", "ui/message"):
+        assert method in read["text"]
+
+    notice = mcp.ok("ingest_school_notice", {
+        "household_id": "hh-demo",
+        "raw_notice": "Due to severe weather, school will operate on a two-hour delay. "
+                      "Doors open at 10:05 AM and classes begin at 10:15 AM.",
+        "source": "school text alert", "received_at": "2026-10-15T06:15:00-04:00",
+    })
+    result = mcp.call("plan_disruption_recovery", {
+        "disruption_id": notice["disruption_id"], "household_state_version": notice["state_version"],
+    })
+    assert result["_meta"]["ui"]["resourceUri"] == card_uri
+    assert result["_meta"]["ui"]["invoked"] == "Plan ready"
+    assert result["structuredContent"]["card"]["action"] == "Apply 13 changes"
+    assert result["content"][0]["type"] == "text"  # hosts without MCP Apps still get text
+
+
 def test_unsupported_protocol_version_header_is_rejected(server):
     live, _, _ = server
     mcp = RawMcp(live.url)

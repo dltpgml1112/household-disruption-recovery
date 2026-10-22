@@ -78,6 +78,8 @@ class AgentSession:
     last_trace: dict | None = None
     agent: str = "rules"
     llm_messages: list = field(default_factory=list)
+    # MCP Apps views read at session start: tool name -> {"uri", "html"}
+    ui: dict = field(default_factory=dict)
 
 
 class RuleAgent:
@@ -97,21 +99,6 @@ class RuleAgent:
             if m["name"].lower() == name.lower():
                 return m["id"]
         return None
-
-    def describe_conflicts(self, s: AgentSession, conflicts: list[dict]) -> list[str]:
-        names = self._names(s)
-        out = []
-        for c in conflicts:
-            if c["code"] == "OWNER_UNAVAILABLE":
-                child = names.get(c.get("child_id"), c.get("child_id"))
-                out.append(f"{names.get(c.get('member_id'), c.get('member_id'))} can't take {child} at the new time")
-            elif c["code"] == "SUPERVISION_GAP":
-                child = names.get(c.get("child_id"), c.get("child_id"))
-                spans = " and ".join(say_span(i) for i in c.get("intervals", []))
-                out.append(f"{child} would be home without an adult {spans}")
-            else:
-                out.append(c["detail"])
-        return out
 
     def describe_fix(self, s: AgentSession, plan: dict) -> list[str]:
         names = self._names(s)
@@ -148,8 +135,10 @@ class RuleAgent:
         for u in plan["unresolved"]:
             if u["code"] == "SUPERVISION_GAP":
                 child = names.get(u["child_id"], u["child_id"])
-                why = "; ".join(u["blockers"][:3])
-                parts.append(f"nobody approved can be with {child} from {say_span(u['interval'])} ({why})")
+                # spoken: keep reasons like "Linda is unavailable today"; the card lists the timed commitments
+                why = [b for b in u["blockers"] if not re.search(r"\d\d:\d\d", b)][:2]
+                parts.append(f"nobody approved can be with {child} from {say_span(u['interval'])}"
+                             + "".join(f"; {w}" for w in why))
             else:
                 parts.append(u["detail"])
         return "; ".join(parts)
@@ -244,24 +233,21 @@ class RuleAgent:
         s.plan, s.approval, s.apply, s.verify = plan, None, None, None
         s.apply_attempts = 0
         s.screen = "C"
-        conflicts = self.describe_conflicts(s, plan["conflicts"])
+        # Spoken replies stay short; the card and the screen carry the conflicts, counts and blockers.
         head = ""
         if preface and s.notice:
-            n = len(conflicts)
+            n = len(plan["conflicts"])
             if s.notice["structured"]["kind"] == "closure":
-                head = f"School is closed today, so {n} thing{'s' if n != 1 else ''} break{'' if n != 1 else 's'}: "
+                head = f"School is closed today, so {n} thing{'s' if n != 1 else ''} break{'' if n != 1 else 's'}. "
             else:
                 delay = s.notice["structured"].get("delay_minutes") or 0
                 hours = {60: "an hour", 120: "two hours", 180: "three hours"}.get(delay, f"{delay} minutes")
-                head = f"School starts {hours} late, so {n} thing{'s' if n != 1 else ''} break{'' if n != 1 else 's'}: "
-            head += "; ".join(conflicts) + ". "
+                head = f"School starts {hours} late, so {n} thing{'s' if n != 1 else ''} break{'' if n != 1 else 's'}. "
         if not plan["feasible"]:
             return head + ("I couldn't find a plan that covers everyone: " + self.describe_unresolved(s, plan)
                            + ". Can another approved adult help, or can one of you move a commitment?")
         fix = " ".join(self.describe_fix(s, plan))
-        n_notify = sum(1 for a in plan["actions"] if a["type"] == "notify_member")
-        return (head + "Here's the fix. " + fix +
-                f" That's {len(plan['actions'])} changes and {n_notify} people notified. Should I go ahead?")
+        return head + "Here's the fix. " + fix + " Should I go ahead?"
 
     async def approve(self, mcp: McpSession, s: AgentSession, channel: str) -> str:
         if not s.plan or not s.plan.get("feasible") or s.plan.get("status") not in ("proposed",):

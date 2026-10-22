@@ -54,6 +54,38 @@ def proposed_calendar(s: AgentSession) -> list[dict] | None:
     return sorted(events.values(), key=lambda e: (e["start"], e["id"]))
 
 
+async def read_views(mcp: McpSession) -> dict[str, dict]:
+    """Read the MCP Apps views the server links to its tools, once per session, the way a host
+    prefetches them. An unreadable view leaves the simulator on its built-in card."""
+    views: dict[str, dict] = {}
+    html: dict[str, str] = {}
+    try:
+        for tool, uri in mcp.ui_links().items():
+            if uri not in html:
+                html[uri] = await mcp.read_resource(uri)
+            views[tool] = {"uri": uri, "html": html[uri]}
+    except Exception:
+        return {}
+    return views
+
+
+def app_view(s: AgentSession) -> dict[str, Any] | None:
+    """The MCP App to show for the current screen: the view's HTML and the tool result it renders."""
+    if s.screen == "D" and s.verify:
+        tool, out = "verify_recovery", s.verify
+        args: dict[str, Any] = {"plan_id": out.get("plan_id")}
+    elif s.screen == "C" and s.plan:
+        tool, out = "plan_disruption_recovery", s.plan
+        args = {"disruption_id": out.get("disruption_id"), "household_state_version": out.get("base_state_version")}
+    else:
+        return None
+    ui = s.ui.get(tool)
+    if not ui or not out.get("card"):
+        return None
+    return {"uri": ui["uri"], "html": ui["html"], "tool": tool, "input": args,
+            "result": {"content": [{"type": "text", "text": out["card"]["title"]}], "structuredContent": out}}
+
+
 def view(s: AgentSession) -> dict[str, Any]:
     conflicts = (s.plan or {}).get("conflicts") or (s.notice or {}).get("conflicts") or []
     return {
@@ -73,6 +105,7 @@ def view(s: AgentSession) -> dict[str, Any]:
         "apply": s.apply,
         "verify": s.verify,
         "audit": s.audit,
+        "app": app_view(s),
         "trace": s.last_trace,
         "degraded": s.degraded,
         "error": s.error,
@@ -121,6 +154,8 @@ def create_api(mcp_url: str, admin_url: str, admin_token: str | None,
         try:
             async with McpSession(mcp_url, trace) as mcp:
                 s.state = await mcp.call("get_household_state", {"household_id": s.household_id})
+                if not s.ui:
+                    s.ui = await read_views(mcp)
             s.degraded, s.error = False, None
             s.last_trace = {"protocol_version": mcp.protocol_version, "tools": mcp.tools, "wire": trace.wire,
                             "calls": trace.calls, "intent": "REFRESH", "agent": agent.name}

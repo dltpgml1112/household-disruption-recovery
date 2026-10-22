@@ -50,6 +50,7 @@ def test_killer_scenario(stack):
     assert "Sarah takes Noah at 7:35." in speech
     assert "Mike stays with Emma until 8:30." in speech
     assert "Linda takes over at 8:30 and drives Emma at 9:55." in speech
+    assert len(speech.split()) <= 45, "spoken proposal should stay short; the card carries the details"
     assert escorts(stack.db)["r-emma-school"] == "sarah"  # nothing written before approval
 
     wire = s.last_trace["wire"]
@@ -165,7 +166,7 @@ def test_school_closure_runs_through_the_same_workflow(stack):
     agent, s = RuleAgent(stack.mcp_url), new_session()
     s.pending_notice = dict(CLOSURE)
     speech = say(agent, s, "Alexa, fix our morning.")
-    assert speech.startswith("School is closed today, so 1 thing breaks: Emma would be home without an adult")
+    assert speech.startswith("School is closed today, so 1 thing breaks. Here's the fix.")
     assert "Mike's office work from 9:45 comes off the calendar." in speech
     with sqlite3.connect(stack.db) as conn:
         assert conn.execute("SELECT status FROM escorts WHERE id='r-emma-school'").fetchone()[0] == "cancelled"

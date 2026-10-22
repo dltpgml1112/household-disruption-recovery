@@ -9,7 +9,8 @@
 | LLM agent | `src/hdr/orchestrator/agent_strands.py` | Strands Agents SDK with a pluggable model (Gemini by default, `llm.py`). Connects to the MCP server with Strands' `MCPClient` and decides which tools to call. Guards described below. |
 | Rule agent | `src/hdr/orchestrator/agent_rules.py` | Regex intents and fixed tool sequences. Baseline for the evaluation and fallback when the model is missing or fails. Everything it says is built from tool results. |
 | Consent check | `src/hdr/orchestrator/consent.py` | Decides whether a parent's words count as a plain yes. Shared by both agents. |
-| MCP server | `src/hdr/mcp_server/app.py` | Eight tools with structured outputs and tool annotations; plan and verify results include a device `card` (title, up to two fields, one action), `/healthz`, demo-only admin routes behind a token. DNS-rebinding protection on, binds to localhost by default. |
+| MCP server | `src/hdr/mcp_server/app.py` | Eight tools with structured outputs and tool annotations; plan and verify results include a device `card` (title, up to two fields, one action) and link the card's MCP App view (`_meta.ui.resourceUri`), `/healthz`, demo-only admin routes behind a token. DNS-rebinding protection on, binds to localhost by default. |
+| Card view (MCP App) | `src/hdr/mcp_server/ui/recovery_card.html` | One HTML file served as `ui://household-disruption-recovery/card` (`text/html;profile=mcp-app`). It draws the plan, the result or the no-plan card from the tool result its host forwards, and sends a tap as `ui/message` (the parent's words); it never calls a tool. |
 | Recovery service | `src/hdr/service/recovery.py` | Workflow, approval tokens, idempotency, per-action execution, read-back verification, audit log. |
 | Domain | `src/hdr/domain` | Notice parser, propagation, planner, checker, action builder. Pure functions over a household snapshot. |
 | Storage | `src/hdr/store` | SQLite. Every write bumps the household `state_version`. |
@@ -17,12 +18,17 @@
 
 ## A turn, end to end
 
-1. Simulator posts the utterance to the orchestrator.
-2. Orchestrator opens an MCP session: `initialize` (2025-11-25) → `notifications/initialized`
-   → `tools/list`. Later requests carry `MCP-Protocol-Version: 2025-11-25` and the session id.
-3. Agent calls tools. For "fix our morning": `get_household_state`, `ingest_school_notice`,
-   `plan_disruption_recovery`. For "yes": `approve_recovery_plan`, `apply_recovery_plan`,
-   `verify_recovery`.
+0. When a browser session starts, the orchestrator reads `get_household_state` and the card view (`resources/read ui://household-disruption-recovery/card`) in one MCP session.
+1. Simulator posts the utterance to the orchestrator (a tap on the card arrives the same way, as the words the view sent with `ui/message`).
+2. Orchestrator opens an MCP session. Strands' `MCPClient` first sends `server/discover`
+   (the 2026-07-28 protocol); the server refuses it with -32022, and the client falls back to
+   `initialize` (2025-11-25) → `notifications/initialized` → `tools/list`. Later requests
+   carry `MCP-Protocol-Version: 2025-11-25` and the session id.
+3. Tools are called. For "fix our morning" the model calls `ingest_school_notice` and
+   `plan_disruption_recovery`, often after `get_household_state`. For "yes" the orchestrator
+   calls `approve_recovery_plan` once the consent check passes; the model then calls
+   `apply_recovery_plan` and `verify_recovery`, and the orchestrator reads the household
+   back with `get_household_state` for the result screen.
 4. Session is closed (`DELETE`). The orchestrator returns the speech, the screen to show,
    and the wire trace.
 
@@ -32,7 +38,7 @@ The model reads the parent's words and the orchestrator's context block (speaker
 disruption, latest plan and whether it was shown, any unprocessed school notice) and calls
 MCP tools through Strands. It never holds the authority to change the household:
 
-- `approve_recovery_plan` is filtered out of the model's tool list. The model reports the
+- `approve_recovery_plan` is filtered out of the model's tool list, and the server marks it app-only (`_meta.ui.visibility: ["app"]`) so a host that follows MCP Apps does the same. The model reports the
   parent's answer with a local tool, `record_parent_decision(plan_id, decision, parent_words)`.
   The orchestrator accepts it only if the quoted words are in this turn's utterance, the plan
   was shown in an earlier turn, and the utterance has no hedge or condition ("but", "wait",

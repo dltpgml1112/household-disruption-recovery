@@ -1,0 +1,221 @@
+{
+  "run": "20261020T062013Z-v5",
+  "scenario_file_sha": "8caf11b2d262",
+  "repeat": 1,
+  "agents": {
+    "rules": {
+      "scenarios": 36,
+      "turns": 67,
+      "task_completion": {
+        "n": 23,
+        "of": 36,
+        "rate": 0.639
+      },
+      "task_completion_without_fallback": {
+        "n": 23,
+        "of": 36,
+        "rate": 0.639
+      },
+      "intent_understanding": {
+        "n": 44,
+        "of": 67,
+        "rate": 0.657
+      },
+      "tool_selection_and_order": {
+        "n": 45,
+        "of": 67,
+        "rate": 0.672
+      },
+      "tool_calls_per_turn": 2.36,
+      "extra_tool_calls_per_turn": 0.97,
+      "failed_tool_calls": 2,
+      "clarification_when_needed": {
+        "n": 2,
+        "of": 3,
+        "rate": 0.667
+      },
+      "asked_instead_of_acting": {
+        "n": 0,
+        "of": 53,
+        "rate": 0.0
+      },
+      "unapproved_apply_attempts_blocked": 0,
+      "unauthorized_write_scenarios": {
+        "n": 0,
+        "of": 36,
+        "rate": 0.0
+      },
+      "false_ready_turns": {
+        "n": 0,
+        "of": 67,
+        "rate": 0.0
+      },
+      "false_ready_turns_before_guard": {
+        "n": 0,
+        "of": 67,
+        "rate": 0.0
+      },
+      "turns_with_unsupported_facts": {
+        "n": 0,
+        "of": 30,
+        "rate": 0.0
+      },
+      "unsupported_fact_examples": [],
+      "fallback_turns": 0,
+      "errors": 0,
+      "median_turn_ms": 119,
+      "by_category": {
+        "clarification": {
+          "n": 2,
+          "of": 4,
+          "rate": 0.5
+        },
+        "closure": {
+          "n": 2,
+          "of": 3,
+          "rate": 0.667
+        },
+        "failure": {
+          "n": 4,
+          "of": 4,
+          "rate": 1.0
+        },
+        "follow_up": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "out_of_scope": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "paraphrase": {
+          "n": 3,
+          "of": 10,
+          "rate": 0.3
+        },
+        "safety": {
+          "n": 8,
+          "of": 8,
+          "rate": 1.0
+        },
+        "spoken_notice": {
+          "n": 0,
+          "of": 3,
+          "rate": 0.0
+        }
+      }
+    },
+    "strands": {
+      "scenarios": 36,
+      "turns": 67,
+      "task_completion": {
+        "n": 36,
+        "of": 36,
+        "rate": 1.0
+      },
+      "task_completion_without_fallback": {
+        "n": 36,
+        "of": 36,
+        "rate": 1.0
+      },
+      "intent_understanding": {
+        "n": 67,
+        "of": 67,
+        "rate": 1.0
+      },
+      "tool_selection_and_order": {
+        "n": 67,
+        "of": 67,
+        "rate": 1.0
+      },
+      "tool_calls_per_turn": 2.04,
+      "extra_tool_calls_per_turn": 0.15,
+      "failed_tool_calls": 2,
+      "clarification_when_needed": {
+        "n": 3,
+        "of": 3,
+        "rate": 1.0
+      },
+      "asked_instead_of_acting": {
+        "n": 0,
+        "of": 53,
+        "rate": 0.0
+      },
+      "unapproved_apply_attempts_blocked": 0,
+      "unauthorized_write_scenarios": {
+        "n": 0,
+        "of": 36,
+        "rate": 0.0
+      },
+      "false_ready_turns": {
+        "n": 0,
+        "of": 67,
+        "rate": 0.0
+      },
+      "false_ready_turns_before_guard": {
+        "n": 0,
+        "of": 67,
+        "rate": 0.0
+      },
+      "turns_with_unsupported_facts": {
+        "n": 0,
+        "of": 15,
+        "rate": 0.0
+      },
+      "unsupported_fact_examples": [],
+      "fallback_turns": 0,
+      "errors": 0,
+      "median_turn_ms": 6707,
+      "by_category": {
+        "clarification": {
+          "n": 4,
+          "of": 4,
+          "rate": 1.0
+        },
+        "closure": {
+          "n": 3,
+          "of": 3,
+          "rate": 1.0
+        },
+        "failure": {
+          "n": 4,
+          "of": 4,
+          "rate": 1.0
+        },
+        "follow_up": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "out_of_scope": {
+          "n": 2,
+          "of": 2,
+          "rate": 1.0
+        },
+        "paraphrase": {
+          "n": 10,
+          "of": 10,
+          "rate": 1.0
+        },
+        "safety": {
+          "n": 8,
+          "of": 8,
+          "rate": 1.0
+        },
+        "spoken_notice": {
+          "n": 3,
+          "of": 3,
+          "rate": 1.0
+        }
+      }
+    }
+  },
+  "model": "gemini-3.5-flash-lite",
+  "model_params": {
+    "thinking_config": {
+      "thinking_level": "LOW"
+    }
+  }
+}

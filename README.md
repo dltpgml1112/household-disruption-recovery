@@ -13,7 +13,7 @@ Entrants cannot connect a server to a real Alexa+ device, so the demo runs throu
 simulator whose agent backend is a real MCP client: `initialize`, `tools/list` and
 `tools/call` over Streamable HTTP, the path the hackathon FAQ allows.
 
-![The proposed fix: the card the MCP server sends, the two conflicts, and the MCP trace of the turn](docs/images/proposed-fix.png)
+![The proposed fix on the simulated wall display: the MCP App card the server sends, the five steps with the tool behind each, the two conflicts, the morning now and with the plan, and the MCP trace of the turn](docs/images/proposed-fix.png)
 
 | | |
 |---|---|
@@ -21,8 +21,23 @@ simulator whose agent backend is a real MCP client: `initialize`, `tools/list` a
 | Required tech | Self-hosted MCP server, spec 2025-11-25, Streamable HTTP (`src/hdr/mcp_server/app.py`). Every household read and write goes through it. |
 | Agent | Strands Agents SDK with Gemini (`src/hdr/orchestrator/agent_strands.py`) calls the MCP tools at runtime. A rule agent is the baseline and the fallback. |
 | Agent action | Detect the change → find what breaks → plan → parent approves → apply → read back and verify. |
-| Evidence | 36 scripted conversations scored the same way for both agents: the LLM agent completed all 36 in the latest run, the rule agent 23 ([below](#evaluation)). Tests that speak raw MCP over HTTP, an audit log for every tool call, read-back checks for every write. |
-| Outcome | Every child accounted for, or the agent says plainly that it could not get there and why. |
+| Track fit | Agentic workflow: one parent's yes changes drivers, supervision, six calendar entries and three messages, and each write is read back. State on the server: plans, approvals and the audit log outlive each MCP session, so "What did you do?" is answered from the log. Media: the plan and result card is an MCP App view (`ui://household-disruption-recovery/card`), the extension Alexa+ says it renders in its webview. |
+| Evidence | 37 scripted conversations scored the same way for both agents: the LLM agent completed all 37 in the latest run (one turn answered by the fallback after a network error), the rule agent 24; no unauthorised write in either ([below](#evaluation)). 117 tests, including raw-HTTP MCP compliance and the MCP Apps links; an audit row for every tool call; a read-back check for every write. |
+| Outcome | Demo morning: 13 of 13 writes read back, every responsibility has an owner. With Linda unavailable: no plan, the uncovered hours and the blocking commitments named, nothing written. |
+
+Alexa+ today, in Amazon's own description, takes a forwarded school email and puts its
+dates on the calendar ("Add all early dismissals to my calendar"). This add-on covers the
+step after that:
+
+| | Alexa+ today (Amazon's description) | This add-on |
+|---|---|---|
+| School message | Reads a forwarded school email | Reads a delay or closure notice, as an alert or read out by a parent |
+| Calendar | Adds the school's dates | Changes the family's own entries as part of one plan (six in the demo) |
+| Who drives, who stays home | Not described | Reassigns trips and supervision within each adult's hours and permissions |
+| Approval and result | Not described | Nothing changes until a parent's plain yes; every write is read back; "ready" only if all match |
+
+"Not described" means I found nothing about it in Amazon's material, or in Ohai, Skylight
+or Hearth (family-calendar products). That is not proof it does not exist.
 
 ## The demo morning (synthetic family)
 
@@ -37,9 +52,13 @@ Emma would be home alone 8:10–8:25 and 8:30–9:55. The planner's answer: Sara
 Noah on her way to work, Mike stays with Emma until 8:30, Linda takes over and drives
 Emma at 9:55. That is 13 writes (two reassignments, two supervision schedules, six
 calendar changes, three messages). If Linda is unavailable there is no valid plan, and
-the agent says so instead of pretending.
+the agent says so instead of pretending. The "No feasible plan" card still answers the
+question a parent has at 6:15: "No approved adult can be with Emma 8:30 AM–10:00 AM",
+what blocks each adult (Sarah's work, Mike's client meeting, Linda unavailable today),
+and the choices left: find another approved adult, or ask whether one of those two
+commitments can move. Nothing is written and the household is not marked ready.
 
-![After the parent's yes: 13 writes read back from storage, every responsibility resolved](docs/images/household-ready.png)
+![After the parent's yes: Household ready, 13 of 13 writes read back from storage, every responsibility covered, a check on each changed block](docs/images/household-ready.png)
 
 If the school closes for the day instead, Emma is home until evening. The same planner
 keeps Linda for the morning and moves Mike's office work so he is home after his
@@ -49,7 +68,7 @@ meeting (13 writes). Without Linda there is again no valid plan.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/architecture-dark.svg">
-  <img src="docs/images/architecture-light.svg" alt="System architecture: the web simulator talks to the orchestrator (FastAPI, /api: session API, Strands agent with Gemini and a rule agent fallback, consent check). The model calls 7 MCP tools over HTTP; approve_recovery_plan is filtered out of its list and is called only by the orchestrator after the consent check. The MCP server (/mcp, spec 2025-11-25, Streamable HTTP, 8 tools) hands every call to the recovery service, which uses the pure planner and checker and is the only writer to SQLite." width="880">
+  <img src="docs/images/architecture-light.svg" alt="System architecture: the web simulator sends an utterance or a tap on the card (ui/message) to the orchestrator (FastAPI, /api: session API, Strands agent with Gemini and a rule agent fallback, consent check). The model calls 7 MCP tools over HTTP; approve_recovery_plan is app-only and filtered out of its list, and is called only by the orchestrator after the consent check. The orchestrator reads the card view ui://household-disruption-recovery/card (MCP App, text/html;profile=mcp-app) once per session with resources/read, and the simulator renders it in a sandboxed iframe. The MCP server (/mcp, spec 2025-11-25, Streamable HTTP, 8 tools) hands every call to the recovery service, which uses the pure planner and checker and is the only writer to SQLite." width="880">
 </picture>
 
 <details>
@@ -57,7 +76,7 @@ meeting (13 writes). Without Linda there is again no valid plan.
 
 ```mermaid
 flowchart TB
-    SIM["Web simulator<br/>Next.js, Alexa+ simulation (unofficial)"]
+    SIM["Web simulator<br/>Next.js, Alexa+ simulation (unofficial)<br/>MCP Apps host: card in a sandboxed frame"]
     subgraph ORCH["Orchestrator: FastAPI, /api"]
         API["Session API<br/>conversation state, wire trace"]
         AG["Strands agent + Gemini<br/>rule agent as fallback"]
@@ -65,19 +84,21 @@ flowchart TB
     end
     subgraph MCP["MCP server: /mcp"]
         TOOLS["8 tools<br/>spec 2025-11-25, Streamable HTTP"]
+        CARD["Card view, MCP App<br/>ui://household-disruption-recovery/card"]
         SVC["Recovery service<br/>approval tokens, idempotency, audit log"]
         PLN["Planner<br/>exhaustive search"]
         CHK["Checker<br/>re-checks stored state"]
     end
     DB[("SQLite")]
 
-    SIM -->|utterance| API
-    API -->|speech, card, trace| SIM
+    SIM -->|"utterance, or a tap on the card (ui/message)"| API
+    API -->|"speech, card view + tool result, trace"| SIM
+    API -->|"resources/read, once per session"| CARD
     API --> AG
     AG -->|"tools/call (7 tools, approve filtered out)"| TOOLS
     AG -.->|record_parent_decision| CON
     CON -->|plain yes from a parent| API
-    API -->|approve_recovery_plan| TOOLS
+    API -->|"approve_recovery_plan (app-only)"| TOOLS
     TOOLS --> SVC
     SVC --> PLN
     SVC --> CHK
@@ -93,15 +114,54 @@ only the recovery service writes to SQLite.
 
 MCP tools: `get_household_state`, `ingest_school_notice`, `plan_disruption_recovery`,
 `approve_recovery_plan`, `apply_recovery_plan`, `verify_recovery`, `get_audit_log`,
-`report_availability_change`. The plan and the verification also come back as a `card` in
-the shape the Alexa+ add-on design guide asks for: one title, at most two supporting
-fields, one action (for the demo: "Sarah takes Noah at 7:35; Linda takes Emma at 9:55",
-"Apply 13 changes"). The simulator shows that card as it is.
+`report_availability_change`.
+
+### The card is an MCP App
+
+The plan and the verification come back with a `card` that follows the add-on design
+guide's advice of one title, one or two supporting fields and one clear action (for the
+demo: "Sarah takes Noah at 7:35; Linda takes Emma at 9:55", "Apply 13 changes"). The server
+also serves that card as an [MCP Apps](https://github.com/modelcontextprotocol/ext-apps)
+view (extension `io.modelcontextprotocol/ui`, spec 2026-01-26):
+
+- An HTML resource at `ui://household-disruption-recovery/card`, mimeType
+  `text/html;profile=mcp-app` (`src/hdr/mcp_server/ui/recovery_card.html`, no external
+  files).
+- `plan_disruption_recovery` and `verify_recovery` link to it with `_meta.ui.resourceUri`,
+  on the tool definition (where the MCP Apps spec puts it) and on each result (where
+  Alexa+'s add-on docs show it, with `invoking` and `invoked` text). Hosts without MCP Apps
+  still get the text and the structured content.
+- `approve_recovery_plan` carries `_meta.ui.visibility: ["app"]`: a host that follows MCP
+  Apps keeps it out of the model's tool list and lets only the view call it.
+
+Amazon's MCP toolkit docs say Alexa+ supports MCP Apps and renders them in its webview
+([overview](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-overview.html)).
+I could not test that: the add-on tools are partner-only. In this repository the
+simulator is the host. The orchestrator reads the view once per session with
+`resources/read`; the simulator runs it in a sandboxed frame (`sandbox="allow-scripts"`,
+no same-origin access) and speaks the MCP Apps postMessage protocol (`ui/initialize`,
+`ui/notifications/tool-result`, `ui/notifications/size-changed`, `ui/message`). A tap on
+"Apply 13 changes" reaches the host as `ui/message` "Yes, do it" from the current speaker
+and goes through the same consent check as a spoken yes.
+
+The simulator shows the household on a wall display (Echo Show framing) or on a phone
+(Alexa app framing): **Phone** at the top, or `?device=phone`. Same session, same API.
+In phone mode the host context sent to the card says `platform: "mobile"`, touch without
+hover, the container size and the safe-area insets, and the card stacks its buttons for
+the narrow screen. I could not check whether the Alexa app on a phone renders MCP Apps;
+this only shows that the card handles a mobile host context.
+
+![Phone mode after "Try again": the same session in a phone frame, the card in a mobile host context reads Household ready, 13 of 13 read back; one write retried, twelve already in](docs/images/phone-mode.png)
 
 Rules the server enforces on every call:
 
-- Planning never writes. Writes need an approval token for one plan id and version,
-  issued only when a parent approves. The approver is a member id that the client sends:
+- Planning never writes. Two tools record facts without an approval token:
+  `ingest_school_notice` moves the school trip to the school's new times (or cancels it on
+  a closure), and `report_availability_change` records that someone can or cannot help.
+  Neither touches anyone's commitments; both bump the state version, so an open plan goes
+  stale, both are in the audit log, and both are annotated `destructiveHint: true` so a
+  host can ask before calling them. Every other write needs an approval token for one
+  plan id and version, issued only when a parent approves. The approver is a member id that the client sends:
   the server checks that the member is a parent and the plan is current, but it cannot
   tell who is speaking. In the simulator you choose the speaker; a real device would need
   voice recognition or account linking for that.
@@ -118,7 +178,9 @@ Rules the server enforces on every call:
 ### The two turns of the demo
 
 Each turn opens its own MCP session (`initialize`, `notifications/initialized`,
-`tools/list`) and closes it with `DELETE`; those calls are left out below.
+`tools/list`) and closes it with `DELETE`; those calls are left out below. When the browser
+session starts, the orchestrator has already read the card view (`resources/read
+ui://household-disruption-recovery/card`).
 
 ```mermaid
 sequenceDiagram
@@ -140,11 +202,12 @@ sequenceDiagram
     M->>X: plan_disruption_recovery
     X->>D: store plan v1 and 13 pending actions (household rows untouched)
     X-->>M: plan v1, card
-    M-->>O: 2 conflicts, the fix, "Should I go ahead?"
-    O-->>S: speech, card, timelines, trace
+    M-->>O: the fix in a few words, "Should I go ahead?"
+    O-->>S: speech, card view and plan result, timelines, trace
+    S->>S: card runs in a sandboxed frame (MCP Apps host)
 
-    P->>S: "Yes, do it"
-    S->>O: POST /api/session/{sid}/turn
+    P->>S: taps "Apply 13 changes" on the card, or says "Yes, do it"
+    S->>O: POST /api/session/{sid}/turn ("Yes, do it", from ui/message or speech)
     M->>O: record_parent_decision(plan v1, "Yes, do it")
     O->>O: consent check: parent's own words, plan shown earlier, no "but" or "if"
     O->>X: approve_recovery_plan as the speaking parent
@@ -156,7 +219,7 @@ sequenceDiagram
     X-->>M: ready = true, 13/13
     M-->>O: "Your household is ready."
     O->>X: get_household_state (the result screen shows stored data)
-    O-->>S: HOUSEHOLD READY 13/13
+    O-->>S: "Household ready", 13/13 read back
 ```
 
 ### Plan lifecycle
@@ -324,28 +387,29 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 ## Evaluation
 
-`evals/` plays 36 scripted conversations (67 turns) against each agent, with a fresh
+`evals/` plays 37 scripted conversations (71 turns) against each agent, with a fresh
 household and MCP server per scenario, and scores both with the same code from the MCP
 calls, the replies and the database. "Ready" is judged from the database and the
 checker, not from the agent's own verification. Definitions are in
 [evals/README.md](evals/README.md); raw results in `evals/results/`.
 
-Run of 2026-10-20, one pass per agent (`20261020T014041Z-v4` in `evals/results/`), model
-gemini-3.5-flash-lite with thinking level LOW:
+Run of 2026-10-21 on the current code, one pass per agent (`20261021T003756Z-v6` in
+`evals/results/`), model gemini-3.5-flash-lite with thinking level LOW:
 
 | | Rule agent | Strands + gemini-3.5-flash-lite |
 |---|---|---|
-| Scenarios completed (every turn right, final state right) | 23/36 | 36/36 |
-| Turns with the expected behaviour | 44/67 | 67/67 |
-| Turns with the expected tools, in order | 45/67 | 67/67 |
-| Tool calls per turn (of which beyond the expected tools) | 2.36 (0.97) | 2.01 (0.12) |
+| Scenarios completed (every turn right, final state right) | 24/37 | 37/37 |
+| Turns with the expected behaviour | 48/71 | 71/71 |
+| Turns with the expected tools, in order | 49/71 | 71/71 |
+| Tool calls per turn (of which beyond the expected tools) | 2.37 (0.97) | 1.96 (0.10) |
 | Clarifying question when one was needed | 2/3 | 3/3 |
-| Scenarios with an unauthorised write | 0/36 | 0/36 |
+| Scenarios with an unauthorised write | 0/37 | 0/37 |
 | Apply attempts the server refused for missing approval | 0 | 1 |
-| Replies claiming "ready" when it was not (before the guard) | 0/67 (0) | 0/67 (0) |
-| Replies with a time or count not in the tool results | 0/30 | 0/31 |
-| Turns handed to the rule agent | – | 0 |
-| Median time per turn | 0.2 s | 7.4 s |
+| Replies claiming "ready" when it was not (before the guard) | 0/71 (0) | 0/71 (0) |
+| Replies with a time or count not in the tool results | 0/32 | 0/17 |
+| Words in the spoken plan proposal (median) | 37 | 25 |
+| Turns handed to the rule agent | – | 1 (a network read error) |
+| Median time per turn | 0.1 s | 6.2 s |
 
 | Category | Rule agent | Strands |
 |---|---|---|
@@ -353,21 +417,33 @@ gemini-3.5-flash-lite with thinking level LOW:
 | spoken notice (S11–S13) | 0/3 | 3/3 |
 | closure (S14–S16) | 2/3 | 3/3 |
 | clarification (S17–S20) | 2/4 | 4/4 |
-| safety (S21–S27, S36) | 8/8 | 8/8 |
+| safety (S21–S27, S36, S37) | 9/9 | 9/9 |
 | failure (S28–S31) | 4/4 | 4/4 |
 | follow up (S32–S33) | 2/2 | 2/2 |
 | out of scope (S34–S35) | 2/2 | 2/2 |
 
 What the numbers hide:
 
-- This is one run. The LLM agent's earlier full runs scored 34/35, 34/35 and 33/35, each
-  failing a different scenario; each failure led to a fix (below), and S36 was added
-  after a review asked what happens when a parent wants a different driver. Results vary
-  between runs; four runs are not a distribution.
+- One LLM turn (the last one of S32) lost its model call to a network read error and the
+  rule agent answered it; the scenario still passed. Without that fallback the LLM agent
+  completed 36 of 37.
+- The two runs before this one (`v4` and `v5`, 2026-10-20) also had the LLM agent complete
+  every scenario then in the set (36 of 36). Its earlier full runs scored 34/35, 34/35 and
+  33/35, each failing a different scenario; each failure led to a fix (below). Results vary
+  between runs; six runs are not a distribution.
+- S37 was added after one take of the demo video failed: after a conditional yes and a
+  caregiver's refused yes, the model refused the parent's own plain yes as well. The
+  system prompt now says the speaker can change between turns and an earlier refusal does
+  not carry over. Before that rule S37 passed 3 of 3 reruns, so the failure is rare; this
+  run has the rule.
+- Spoken plan proposals got shorter: the median was 57 words for the LLM agent and 66 for
+  the rule agent in `v4`, and 25 and 37 now. The card carries the counts and the
+  messages. Fewer replies quote a time or count (17 against 31), so that check had less to
+  catch.
+- The refused apply attempt is S26: a caregiver's "yes" was refused as an approval, and
+  the model then tried to apply anyway; the server refused.
 - The rule agent fails on wording, not on safety: it misses paraphrases ("Go for it",
   "lock it in"), notices read out by the parent, and the answer to its own question.
-- The refused apply attempt is S26: a caregiver's "yes" was refused as an approval, and
-  the server then refused the apply that came with it.
 - Failures in earlier runs and what changed:
   S16 (2026-10-10) asked for the school's message although the parent had said the school
   was closed: a system-prompt rule was rewritten.
@@ -405,7 +481,8 @@ What the numbers hide:
 
 ```
 src/hdr/
-  mcp_server/app.py      MCP server: 8 tools, protocol pin, health and admin routes
+  mcp_server/app.py      MCP server: 8 tools, the card resource, protocol pin, health and admin routes
+  mcp_server/ui/         the card as an MCP App view (one HTML file)
   service/recovery.py    workflow: approval tokens, idempotency, per-action writes, read-back, audit log
   domain/                notice parser, propagation, planner, checker, action builder (no I/O)
   store/                 SQLite schema and queries
@@ -436,9 +513,10 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1  # Windows
 ```
 
 Open http://127.0.0.1:3000, press **School alert arrives**, then say or click
-"Alexa, fix our morning", then "Yes, do it". The demo buttons also reset the morning,
+"Alexa, fix our morning", then tap "Apply 13 changes" on the card (or say "Yes, do it"). The demo buttons also reset the morning,
 make Linda unavailable, or make the next message to Linda fail. The trace panel shows
-every MCP request of the last turn and which agent answered.
+every MCP request of the last turn and which agent answered. **Phone** at the top shows the
+same session in a phone frame.
 
 The demo buttons use admin routes on the MCP server (reset, fault injection, the sample
 notice). They exist only when `HDR_ADMIN_TOKEN` is set; the dev scripts generate one. If
@@ -479,14 +557,16 @@ uv run pytest
 GitHub Actions runs the same tests, the simulator's type check and the static build on
 every push (`.github/workflows/tests.yml`).
 
-115 tests, no model API needed. Unit tests (54) cover the parser, planner, checker,
+117 tests, no model API needed. Unit tests (54) cover the parser, planner, checker,
 action builder, device cards, model settings (including which Gemini errors are
 retried) and the phrases the "ready" guard catches.
 Integration tests start the real server on a local port.
 `tests/integration/test_mcp_compliance.py` uses plain HTTP (no MCP SDK) to check the
 2025-11-25 handshake, the `MCP-Protocol-Version` header on later requests, `tools/list`,
 `tools/call`, the rows written to SQLite, the read-back and the refusal of the newer
-protocol era; its last test checks that Strands' `MCPClient` ends up on 2025-11-25.
+protocol era; another checks the MCP Apps links (the `ui://` resource and its mimeType,
+`_meta.ui.resourceUri` on the tool definitions and results, the app-only approval tool); its
+last test checks that Strands' `MCPClient` ends up on 2025-11-25.
 `tests/integration/test_strands_agent.py` drives the Strands agent with a scripted model:
 the approval tool is hidden, a conditional or borrowed "yes" is refused, apply without
 approval is refused by the server, an unverified "ready" is replaced, availability is only
@@ -494,8 +574,9 @@ recorded when the parent names the person, a plan that went stale cannot be appr
 applied, tool calls stay on the session's household, and a failing model hands the turn
 to the rule agent. `tests/integration/test_hosted.py`
 runs the single-port server: simulator files, agent API and MCP on one port, a separate
-household per browser session, the Host/Origin checks, and that only a parent speaking
-can approve. `tests/security/` tries to
+household per browser session, the Host/Origin checks, that only a parent speaking
+can approve, and that the card view is read with `resources/read` and reaches the plan
+and result screens with the tool result it renders. `tests/security/` tries to
 apply without approval, with forged or tampered tokens, with an old plan version, twice
 with the same key, after the household changed, and with an expired token; each test
 checks that nothing in the household changed.
@@ -525,16 +606,29 @@ The model provider is Gemini through Strands' `GeminiModel`; Bedrock is not used
   there; gemini-3.8-flash allowed 20, too few to evaluate, so it is not the default.
   When the daily quota is used up the call is not retried, and the rule agent answers that
   turn (the trace says so).
-  A turn of the LLM agent took 7.4 s (median) in the evaluation, which is slow for a
+  A turn of the LLM agent took 6.2 s (median) in the evaluation, which is slow for a
   spoken reply; the simulator says "One moment" and shows "Working on it…" meanwhile.
 - When no plan exists, the reply names the gap left by the best plan found, which can be
   wider than the smallest possible gap.
+- The MCP App card runs in this simulator's host only. I could not load it into Alexa+ (the
+  add-on tools are partner-only), so how Alexa+ draws it is untested. The wall display and
+  the phone are frames drawn by the web page, not an Echo Show or the Alexa app.
 - Who is speaking is picked on screen ("Speaking: Sarah (parent)"); voice identification is
   not modelled. Only a parent's yes is accepted as an approval.
 - There is no account linking: the household comes from the browser session, not from a
   signed-in family.
 - The hosted demo's MCP endpoint has no login: any MCP client can work on the shared demo
   household. It holds only the made-up family.
+- Setting up a family is a JSON file today (`fixtures/households/school_delay_demo.json`):
+  the people, who may drive or watch whom, travel minutes, hard and soft commitments, a
+  helper's hours. There is no setup conversation or screen. After setup, changes come by
+  voice ("Linda can't come today"), which works.
+- One family is modelled, with variants (Linda unavailable, a closure instead of a delay).
+- "Household ready" means every change is stored and every message reached the simulated
+  outbox. Nobody confirms they read it; Linda's acceptance is not modelled.
+- Calendar writes and messages go to SQLite. Pointing them at a real calendar and
+  messaging service would leave the planner and the approval rule as they are, but the
+  writes and the read-back would need an adapter for those APIs; none is written.
 - I have not measured how much time this saves a family; the evaluation numbers are about
   the agent, not about families.
 - All people in the fixtures are made up.

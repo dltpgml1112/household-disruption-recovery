@@ -62,6 +62,8 @@ class WireRecorder:
             info["rpc_id"] = body.get("id")
             if body.get("method") == "tools/call":
                 info["tool"] = (body.get("params") or {}).get("name")
+            elif body.get("method") == "resources/read":
+                info["tool"] = (body.get("params") or {}).get("uri")
         except Exception:
             info["method"] = None
         info["protocol_header"] = request.headers.get("mcp-protocol-version")
@@ -93,6 +95,7 @@ class McpSession:
         self.retries = retries
         self.protocol_version: str | None = None
         self.tools: list[str] = []
+        self.tool_meta: dict[str, dict] = {}
         self._recorder = WireRecorder(trace)
 
     async def __aenter__(self) -> "McpSession":
@@ -121,7 +124,22 @@ class McpSession:
             await self.__aexit__(None, None, None)
             raise McpUnavailable(f"MCP server at {self.url} did not list tools: {type(e).__name__}") from e
         self.tools = [t.name for t in listed.tools]
+        self.tool_meta = {t.name: t.meta or {} for t in listed.tools}
         return self
+
+    def ui_links(self) -> dict[str, str]:
+        """Tool name -> MCP Apps view (`_meta.ui.resourceUri` on the tool definition)."""
+        links = {}
+        for name, meta in self.tool_meta.items():
+            uri = (meta.get("ui") or {}).get("resourceUri")
+            if uri:
+                links[name] = uri
+        return links
+
+    async def read_resource(self, uri: str) -> str:
+        with anyio.fail_after(self.timeout_s):
+            result = await self._client.read_resource(uri)
+        return "".join(getattr(c, "text", "") or "" for c in result.contents)
 
     async def __aexit__(self, *exc: Any) -> None:
         try:

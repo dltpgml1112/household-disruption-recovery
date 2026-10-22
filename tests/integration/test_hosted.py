@@ -106,3 +106,26 @@ def test_speaker_decides_who_can_approve(hosted):
 
     done = http.post(f"/api/session/{sid}/turn", json={"utterance": "Yes, do it.", "speaker": "sarah"}).json()
     assert done["verify"]["ready"] is True
+
+
+def test_card_arrives_as_an_mcp_app(hosted):
+    """The session reads the card view over MCP (resources/read) and the plan and result screens
+    carry it with the tool result it renders; other screens carry no app."""
+    http = httpx.Client(base_url=hosted.url, timeout=60)
+    v = http.post("/api/session", json={}).json()
+    sid = v["session_id"]
+    assert v["app"] is None
+    reads = [w for w in v["trace"]["wire"] if w.get("method") == "resources/read"]
+    assert [w["tool"] for w in reads] == ["ui://household-disruption-recovery/card"]
+
+    http.post(f"/api/session/{sid}/notice", json={})
+    plan = turn(http, sid, "Alexa, fix our morning.")
+    app = plan["app"]
+    assert app["uri"] == "ui://household-disruption-recovery/card"
+    assert app["tool"] == "plan_disruption_recovery"
+    assert app["html"].startswith("<!doctype html>") and "ui/initialize" in app["html"]
+    assert app["result"]["structuredContent"]["card"]["action"] == "Apply 13 changes"
+
+    done = turn(http, sid, "Yes, do it.")
+    assert done["app"]["tool"] == "verify_recovery"
+    assert done["app"]["result"]["structuredContent"]["card"]["title"] == "Household ready"

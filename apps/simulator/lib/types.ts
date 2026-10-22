@@ -144,6 +144,15 @@ export interface ApplyResult {
   skipped_already_applied: number;
 }
 
+/** approve_recovery_plan's result, without its token. */
+export interface Approval {
+  plan_id: string;
+  plan_version: number;
+  decision: string;
+  status: string;
+  approved_actions?: number;
+}
+
 export interface WireEvent {
   method: string | null;
   tool?: string;
@@ -179,9 +188,20 @@ export interface View {
   state: HouseholdState | null;
   plan: Plan | null;
   proposed_calendar: CalEvent[] | null;
+  approval?: Approval | null;
   apply: ApplyResult | null;
   verify: Verify | null;
+  app: McpApp | null;
   trace: Trace | null;
   degraded: boolean;
   error: { code: string; message: string } | null;
+}
+
+/** An MCP Apps view (ui:// resource, text/html;profile=mcp-app) and the tool result it renders. */
+export interface McpApp {
+  uri: string;
+  html: string;
+  tool: string;
+  input?: Record<string, unknown>;
+  result: { content: { type: string; text: string }[]; structuredContent: Record<string, unknown> };
 }
