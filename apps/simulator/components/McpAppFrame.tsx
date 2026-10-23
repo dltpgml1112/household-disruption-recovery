@@ -29,7 +29,8 @@ export function McpAppFrame({
   app: McpApp;
   /** the device this card is shown on: a wall display ("web") or the phone app ("mobile") */
   platform?: "web" | "mobile";
-  onMessage: (text: string) => void;
+  /** false when the page did not take the words (another turn is still running) */
+  onMessage: (text: string) => boolean;
   /** called once, when the view has drawn the tool result (its first size report after the result) */
   onReady?: () => void;
   /** the height to hold until the view reports its own (the card it replaces), so nothing jumps */
@@ -98,8 +99,13 @@ export function McpAppFrame({
             fail(m.id, -32602, "ui/message needs a text content block");
             return;
           }
+          // a tap while another turn runs is not taken: answer with an error, so the card says so and
+          // turns its buttons back on instead of showing "Sent" for words nobody received
+          if (!send.current(text)) {
+            fail(m.id, -32000, "the host is still answering; try again in a moment");
+            return;
+          }
           reply(m.id, {});
-          send.current(text);
           return;
         }
         default:

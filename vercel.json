@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "apps/simulator/",
+      "framework": "nextjs",
+      "buildCommand": "HDR_STATIC_EXPORT=1 NEXT_PUBLIC_HDR_API=same-origin NEXT_PUBLIC_HDR_HOSTED=1 NEXT_TELEMETRY_DISABLED=1 npm run build"
+    },
+    "server": {
+      "root": ".",
+      "entrypoint": "Dockerfile"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "server" } },
+    { "source": "/mcp", "destination": { "service": "server" } },
+    { "source": "/healthz", "destination": { "service": "server" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
+}

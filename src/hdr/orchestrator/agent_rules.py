@@ -345,4 +345,4 @@ class RuleAgent:
 
 
 def new_session(household_id: str = "hh-demo") -> AgentSession:
-    return AgentSession(session_id=f"s-{uuid.uuid4().hex[:8]}", household_id=household_id)
+    return AgentSession(session_id=f"s-{uuid.uuid4().hex}", household_id=household_id)

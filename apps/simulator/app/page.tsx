@@ -230,7 +230,7 @@ function shortDate(date: string | undefined): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-type Send = (t: string, c: "voice" | "screen") => void;
+type Send = (t: string, c: "voice" | "screen") => boolean;
 type Device = "echo" | "phone";
 type Platform = "web" | "mobile";
 
@@ -265,7 +265,7 @@ function PinnedSlot({
   note: Note;
   refused: boolean;
   platform: Platform;
-  onMessage: (t: string) => void;
+  onMessage: (t: string) => boolean;
 }) {
   const [readyKey, setReadyKey] = useState<string | null>(null);
   const [shown, setShown] = useState<Note | null>(null);
@@ -510,7 +510,7 @@ export default function Page() {
   const send = useCallback(
     (text: string, channel: "voice" | "screen") => {
       // one turn at a time: a tap on the card while a chip's turn runs would send a second approval
-      if (!view || busy) return;
+      if (!view || busy) return false;
       setPending(text);
       // narrow screens: the bar and chips sit under the timeline, so bring the screen (reply and card) into view
       const el = screen.current;
@@ -529,6 +529,7 @@ export default function Page() {
         window.speechSynthesis.speak(ack);
       }
       run(() => api.turn(view.session_id, text, channel, speaker)).finally(() => setPending(null));
+      return true;
     },
     [run, view, speaker, voiceOn, busy],
   );

@@ -13,6 +13,10 @@ Entrants cannot connect a server to a real Alexa+ device, so the demo runs throu
 simulator whose agent backend is a real MCP client: `initialize`, `tools/list` and
 `tools/call` over Streamable HTTP, the path the hackathon FAQ allows.
 
+Hosted demo, no login: https://household-disruption-recovery.vercel.app (MCP endpoint at
+`/mcp`). It is on Vercel's free plan and has two known limits, listed under
+[Limits](#limits).
+
 ![The proposed fix on the simulated wall display: the MCP App card the server sends, the five steps with the tool behind each, the two conflicts, the morning now and with the plan, and the MCP trace of the turn](docs/images/proposed-fix.png)
 
 | | |
@@ -530,7 +534,9 @@ from the start of the turn, so it includes the model's thinking before that call
 The demo buttons use admin routes on the MCP server (reset, fault injection, the sample
 notice). They exist only when `HDR_ADMIN_TOKEN` is set; the dev scripts generate one. If
 you start the processes by hand, set the same token for the MCP server and the
-orchestrator, or the buttons answer 503.
+orchestrator, or the buttons answer 503. Through the page's API only one fault can be set:
+one failed message in that session's household ("Fail Linda's message"); other faults,
+such as a tool delay that would slow every household, need the admin route.
 
 One process on one port, which is what the hosted demo runs:
 
@@ -541,8 +547,12 @@ HDR_STATIC_DIR=apps/simulator/out uv run python -m hdr.hosted    # http://127.0.
 
 There each browser session gets its own copy of the household, so visitors do not change
 each other's morning; outside MCP clients work on the shared `hh-demo` household. The
-`Dockerfile` builds the same thing, and `scripts/deploy_hf_space.py` uploads it to a
-Hugging Face Space.
+`Dockerfile` builds the same thing. The hosted demo runs that image on Vercel's container
+runtime (`vercel.json`): Vercel serves the simulator as static files and sends `/api`,
+`/mcp` and `/healthz` to the container. `HDR_PUBLIC_HOSTS` must name the public host, or
+the MCP server's DNS-rebinding check turns outside clients away (421).
+`scripts/deploy_hf_space.py` uploads the same image to a Hugging Face Space; Docker
+Spaces now need a paid plan, so the hosted demo does not use it.
 
 Without the web UI:
 
@@ -617,6 +627,8 @@ The model provider is Gemini through Strands' `GeminiModel`; Bedrock is not used
   turn (the trace says so).
   A turn of the LLM agent took 6.2 s (median) in the evaluation, which is slow for a
   spoken reply; the simulator says "One moment" and shows "Working on it…" meanwhile.
+  On the hosted demo on 2026-10-24 a whole run (alert, plan, apply) took 15–76 s, median
+  36 s over 15 runs, most of it waiting for Gemini.
 - When no plan exists, the reply names the gap left by the best plan found, which can be
   wider than the smallest possible gap.
 - The MCP App card runs in this simulator's host only. I could not load it into Alexa+ (the
@@ -628,6 +640,14 @@ The model provider is Gemini through Strands' `GeminiModel`; Bedrock is not used
   signed-in family.
 - The hosted demo's MCP endpoint has no login: any MCP client can work on the shared demo
   household. It holds only the made-up family.
+- The hosted demo keeps sessions in the server's memory. When several requests arrive at
+  once, Vercel can start a second copy of the server, and it does not send a session back
+  to the copy that holds it. That session is lost: the page says "The demo server
+  restarted, so this is a new morning" and starts over. With three people going through
+  the demo at the same time, two of the three hit this in each of my two tests
+  (2026-10-23 and 2026-10-24); one person at a time did not, in 30 runs.
+- After 5 minutes without a request the hosted server stops; a page left open without a
+  click counts. The next click starts it again (about 10 s) with a new morning.
 - Setting up a family is a JSON file today (`fixtures/households/school_delay_demo.json`):
   the people, who may drive or watch whom, travel minutes, hard and soft commitments, a
   helper's hours. There is no setup conversation or screen. After setup, changes come by

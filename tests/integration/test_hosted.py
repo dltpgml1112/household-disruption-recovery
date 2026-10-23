@@ -108,6 +108,20 @@ def test_speaker_decides_who_can_approve(hosted):
     assert done["verify"]["ready"] is True
 
 
+def test_page_can_only_fail_one_message_in_its_own_household(hosted):
+    """The fault route behind "Fail Linda's message" takes that and nothing else: a tool delay
+    set through it would slow every visitor's household."""
+    http = httpx.Client(base_url=hosted.url, timeout=60)
+    sid = http.post("/api/session", json={}).json()["session_id"]
+    ok = http.post(f"/api/session/{sid}/fault", json={"target": "notify", "selector": "linda", "times": 1})
+    assert ok.status_code == 200, ok.text
+    for body in ({"target": "tool_delay", "selector": "get_household_state", "delay_ms": 60000},
+                 {"target": "notify", "selector": "linda", "times": -1},
+                 {"target": "notify", "selector": "linda", "delay_ms": 5000},
+                 {"target": "calendar", "selector": "*"}):
+        assert http.post(f"/api/session/{sid}/fault", json=body).status_code == 422, body
+
+
 def test_card_arrives_as_an_mcp_app(hosted):
     """The session reads the card view over MCP (resources/read) and the plan and result screens
     carry it with the tool result it renders; other screens carry no app."""

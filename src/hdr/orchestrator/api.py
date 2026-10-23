@@ -225,9 +225,12 @@ def create_api(mcp_url: str, admin_url: str, admin_token: str | None,
 
     @app.post("/api/session/{sid}/fault")
     async def fault(sid: str, body: FaultIn) -> dict:
+        # what the page's "Fail Linda's message" button sends: one failed message in this session's
+        # household. Anything else (a tool delay reaches every household) goes through /admin/faults.
         s = get(sid)
-        await admin("POST", "/admin/faults", {**body.model_dump(),
-                                             "household_id": s.household_id if body.target != "tool_delay" else "*"})
+        if body.target != "notify" or body.times != 1 or body.delay_ms:
+            raise HTTPException(422, "the page can only make one message in its own household fail")
+        await admin("POST", "/admin/faults", {**body.model_dump(), "household_id": s.household_id})
         return {"added": body.model_dump()}
 
     return app
