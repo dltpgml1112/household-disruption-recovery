@@ -644,8 +644,10 @@ The model provider is Gemini through Strands' `GeminiModel`; Bedrock is not used
   once, Vercel can start a second copy of the server, and it does not send a session back
   to the copy that holds it. That session is lost: the page says "The demo server
   restarted, so this is a new morning" and starts over. With three people going through
-  the demo at the same time, two of the three hit this in each of my two tests
-  (2026-10-23 and 2026-10-24); one person at a time did not, in 30 runs.
+  the demo at the same time, two or three of the three hit this in each of my three
+  tests (2026-10-23 and 2026-10-24); one person at a time did not, in 30 runs. MCP
+  clients are hit the same way: their MCP session and the shared demo household also live
+  on one copy, so a client can get "Session not found" while more than one copy runs.
 - After 5 minutes without a request the hosted server stops; a page left open without a
   click counts. The next click starts it again (about 10 s) with a new morning.
 - Setting up a family is a JSON file today (`fixtures/households/school_delay_demo.json`):
